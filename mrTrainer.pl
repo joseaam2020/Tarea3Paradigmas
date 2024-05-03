@@ -26,6 +26,8 @@ sintagma_nominal(S0,S):- nombrec(S0,S).%ej: asma
 sintagma_verbal(S0,S):- verboc(S0,S).% ej: corro
 sintagma_verbal(S0,S):- verboc(S0,S1), verboc(S1 ,S). %ej: quiero empezar
 sintagma_verbal(S0,S):- verboc(S0,S1), sintagma_nominal(S1,S).%ej: correr la maraton
+sintagma_verbal(S0,S):- verboc(S0,S1), verboc(S1, S2),
+    sintagma_nominal(S2,S).%ej: correr la maraton
 
 /*
  * determina si la palabra existe en el diccionario
@@ -36,9 +38,12 @@ verboc([Verbo|S],S) :- verbo(Verbo).
 saludoc([Saludo|S], S) :-saludo(Saludo).
 despidoc([Despido|S], S) :- despido(Despido).
 
-%se utiliza mas adelante
+%se utiliza para las palabras clave
 miembro(H, [H|_]).
 miembro(H, [_|R]) :- miembro(H, R).
+concatenar([],L,L).
+concatenar([H|R1],L,[H|R2]):- concatenar(R1,L,R2).
+
 
 /*
  * verifica que tipo de oracion escribe el usuario (saludar, despedirse o preguntar)
@@ -49,29 +54,32 @@ tipo(consulta, Lista):- consulta(Lista, []).
 
 
 tipo_consulta(servicio, Lista, X):- consulta(Lista, []),
-    palabra_clave(X), miembro(X, Lista). 
+    palabra_clave(X), miembro(X, Lista).
 tipo_consulta(deporte_practicado, Lista, X):- consulta(Lista, []),
     deporte(X), miembro(X, Lista).
 tipo_consulta(padecimiento_actual, Lista, X):- consulta(Lista, []),
     padecimiento(X), miembro(X, Lista).
 tipo_consulta(frecuencia, Lista, X):- consulta(Lista, []),
     nivel(X), miembro(X, Lista).
-tipo_consulta(rutina ,Lista):- consulta(Lista, []).
+%tipo_consulta(rutina ,Lista):- consulta(Lista, []).
 
 /*
  * lo que escribe el entrenador personal segun el tipo de oracion
  */
-respuesta(inicio, "Hola, en que te puedo ayudar?").
+respuesta(inicio, "Hola, soy MrTrainer, un sistema experto en deporte, 
+                   en que te puedo ayudar?").
 respuesta(fin, "Hasta luego, avisame si te puedo seguir ayudando").
-respuesta(Consulta, Pregunta):- tipo_consulta()
+%respuesta(consulta, Respuesta) :- 
+
 
 
 /*
  * preguntas predefinidas para saber informacion del usuario
- */    
-deportes("¿sufres de algun padecimiento?").
-frecuencia("¿que tan frecuentemente entrenas?").
-padecimientos("¿sufres de algun padecimiento?").
+ */ 
+pregunta(servicio, "¿Que deporte practicas?").
+pregunta(deporte_practicado, "¿sufres de algun padecimiento?").
+pregunta(padecimiento_actual, "¿Indique su nivel de intensidad del 1 al 8?").
+%pregunta(frecuencia, Rutina):- rutina().
 
 
 %lee la frase que escribe el usuario y la separa en una lista segun los espacios
@@ -80,30 +88,56 @@ leer_frase_como_lista(ListaPalabras):-
     split_string(Frase, " ", "", ListaPalabras).
 
 %corre el entrenador dinamicamente
-script:-
-    leer_frase_como_lista(Lista),
+%corre el entrenador dinamicamente
+script(Lista,_):-
+    tipo(fin, Lista),
+    respuesta(fin, Trainer),
+    write(Trainer), nl,!.
+
+script(Lista,ListaParametros):-
     tipo(Tipo, Lista),
     respuesta(Tipo, Trainer),
-    write(Trainer), nl.
+    write(Trainer), nl, main_script(ListaParametros).
 
-/*
- * script estricto
-escribe_rutina:-
-    write('Empieza una conversacion'), nl,
-    leer_frase_como_lista(F1),
-    write('¿practicas algun deporte?'),nl,
-    leer_frase_como_lista(F2),
-    tipo(Tipo, F2, Deporte),
-    write('¿sufres de algun padecimiento?'),nl,
-    leer_frase_como_lista(F3),
-    tipo(Tipo, F3, Padecimiento),
-    write('¿con que frecuencia entrenas?'),nl,
-    leer_frase_como_lista(F4),
-    tipo(Tipo, F4, Nivel),
-    rutina(NombreRutina, Deporte, Padecimiento, Nivel, Detalle),
-    write('Tu rutina es'), nl,
-    write(NombreRutina), write(":"), write(Detalle).
-*/
+script(Lista,ListaParametros):-
+    tipo(consulta, Lista),
+    palabra_clave(X),
+    tipo_consulta(Tipo_consulta, Lista, X),
+    pregunta(Tipo_consulta, Trainer),
+    write(Trainer), nl,
+    concatenar([X],ListaParametros,Y),main_script(Y).
+
+script(Lista,ListaParametros):-
+    tipo(consulta, Lista),
+    deporte(X),
+    tipo_consulta(Tipo_consulta, Lista, X),
+    pregunta(Tipo_consulta, Trainer),
+    write(Trainer), nl,
+    concatenar([X],ListaParametros,Y),main_script(Y).
+
+script(Lista,ListaParametros):-
+    tipo(consulta, Lista),
+    padecimiento(X),
+    tipo_consulta(Tipo_consulta, Lista, X),
+    pregunta(Tipo_consulta, Trainer),
+    write(Trainer), nl,
+    concatenar([X],ListaParametros,Y),main_script(Y).
+
+script(Lista,ListaParametros):-
+    tipo(consulta, Lista),
+    nivel(X),
+    tipo_consulta(Tipo_consulta, Lista, X),
+    pregunta(Tipo_consulta, Trainer),
+    write(Trainer), nl,
+    concatenar([X],ListaParametros,Y),main_script(Y).
+
+main_script:- main_script([]).
+
+main_script(ListaParametros):- 
+    leer_frase_como_lista(Lista),
+    script(Lista,ListaParametros).
+
+
     
 
 /*
@@ -139,7 +173,15 @@ nombre("usted").
 nombre("MrTrainer").
 nombre("mrTrainer").
 nombre("intermedio").
+nombre("rutina").
+nombre("plan").
+nombre("entrenamiento").
+nombre("programa").
+nombre("ejercicio").
+nombre(PalabraClave) :- palabra_clave(PalabraClave).
 nombre(Deporte) :- deporte(Deporte).
+nombre(Padecimiento) :- padecimiento(Padecimiento).
+nombre(Nivel) :- nivel(Nivel).
 
 
 verbo("come").
@@ -183,7 +225,7 @@ verbo("tocar").
 verbo("correr").
 verbo("giro").
 verbo("jugar").
-
+verbo("hacer").
 
 %primera persona singular presente
 verbo("corro").
@@ -227,6 +269,8 @@ verbo("corro").
 verbo("giro").
 verbo("juego").
 verbo("hago").
+verbo("quiero").
+verbo("tengo").
 
 /*
  * 
@@ -237,25 +281,58 @@ deporte("baloncesto").
 deporte("tenis").
 deporte("natacion").
 deporte("ciclismo").
+deporte("niguno").
 
 nivel("1").
 nivel("2").
 nivel("3").
 nivel("4").
 nivel("5").
+nivel("6").
 nivel("7").
 nivel("8").
 
-
 padecimiento("taquicardia").
-padecimiento("hipertensión").
+padecimiento("hipertension").
 padecimiento("diabetes").
 padecimiento("artritis").
 
+%rutinas(nombre, deporte, padecimiento, nivel, dias)
+rutina("a", "natacion", [], "1", [lunes, martes]).
+rutina("a", "natacion", [], "1", [lunes, martes]).
+rutina("a", "natacion", [], "1", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "1", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "1", [lunes, martes,miercoles,sabado,domingo]).
 
-rutina("Fuerza", "natacion", "artritis", "intermedio", "200 metros con manopla").
-rutina("Fuerza", "tenis", "diabetes", "2", "12 reps de pull ups por 3 sets").
+
+
+rutina("a", "natacion", [], "1", [lunes, martes]).
+rutina("a", "natacion", [], "2", [lunes, martes]).
+rutina("a", "natacion", [], "3", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "4", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "5", [lunes, martes,miercoles,sabado,domingo])
+
+rutina("a", "natacion", [], "1", [lunes, martes]).
+rutina("a", "natacion", [], "2", [lunes, martes]).
+rutina("a", "natacion", [], "3", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "4", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "5", [lunes, martes,miercoles,sabado,domingo])
+
+rutina("a", "natacion", [], "1", [lunes, martes]).
+rutina("a", "natacion", [], "2", [lunes, martes]).
+rutina("a", "natacion", [], "3", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "4", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "5", [lunes, martes,miercoles,sabado,domingo])
+
+rutina("a", "natacion", [], "1", [lunes, martes]).
+rutina("a", "natacion", [], "2", [lunes, martes]).
+rutina("a", "natacion", [], "3", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "4", [lunes, martes,sabado,domingo]).
+rutina("a", "natacion", [], "5", [lunes, martes,miercoles,sabado,domingo])
+
 
 palabra_clave("plan").
 palabra_clave("entrenamiento").
 palabra_clave("programa").
+palabra_clave("rutina").
+palabra_clave("ejercicio").
